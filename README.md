@@ -1,4 +1,4 @@
-# Forecasting and Interpreting Urban Air Pollution Under Weather, Traffic and Airport Influenc
+# Forecasting and Interpreting Urban Air Pollution Under Weather, Traffic and Airport Influence
 
 Last updated: `2026-05-17`
 
