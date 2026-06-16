@@ -1,83 +1,305 @@
-# Analisi traffico, aeroporto e inquinanti
+# Traffic, Airport Activity, and Air Pollutant Analysis
 
-Data di aggiornamento: `2026-05-17`
+Last updated: `2026-05-17`
 
-## 1. Scopo del lavoro
+## Reproducibility and Execution Guide
 
-L'obiettivo della repo non e' soltanto ottenere modelli predittivi accurati, ma
-capire **quale tipo di informazione** renda prevedibili gli inquinanti in un
-contesto urbano influenzato da:
+This repository is organized so that the analyses can be reproduced from the
+merged hourly dataset and, when available, from the original raw data sources.
+The complete raw-data reconstruction requires access to all source datasets,
+including the airport operation records obtained within the S4C project. Since
+the airport records are not public, the most practical reproducibility entry
+point is the merged dataset:
 
-- traffico urbano da spire;
-- attivita' aeroportuale BLQ;
-- meteo;
-- memoria temporale delle serie;
-- contesto multi-stazione e multi-inquinante.
+- `Datasets_Raw/hourly_merged_2023_2025.csv`
 
-La distinzione tra forecasting e interpretazione e' centrale. Un modello puo'
-prevedere bene un target solo perche' sfrutta la persistenza della serie. Questo
-e' utile operativamente, ma non basta per sostenere una lettura fisica o
-sorgente-specifica. Per questo la repo separa quattro piani analitici:
+The expected merged dataset contains hourly observations indexed by `datetime`,
+with pollutant targets, BLQ airport activity, urban traffic loop counts,
+meteorological variables, and station-level context. The current reference
+dataset has:
 
-1. forecasting single-target con e senza autoregressione del target;
-2. forecasting multi-target per verificare se esista informazione condivisa tra
-   stazioni e inquinanti;
-3. analisi `upwind/downwind` e gradienti spaziali per testare la coerenza fisica
-   del segnale aeroportuale;
-4. sintesi esplicita `cross_pollutant` per confrontare in modo ordinato famiglie
-   chimiche e target.
+- `9,792` hourly rows;
+- `61` columns;
+- time span `2024-05-29 00:00:00` -> `2025-07-10 23:00:00`.
 
-## 2. Risultato chiave della run corrente
+### Environment
 
-Il risultato piu' solido della run attuale non e' solo quale modello ottenga il
-`R2` piu' alto, ma **quali blocchi informativi restino importanti quando vengono
-rimossi sistematicamente**.
+The software environment is specified in:
 
-Nell'ablazione estesa single-target `xgboost`, i contributi medi piu' forti sono:
+- `environment.yml`
+
+It defines a Python `3.11` conda environment with the packages required for
+forecasting, ablation, SHAP, plotting, document generation, and figure
+conversion.
+
+To recreate the environment:
+
+```bash
+conda env create -f environment.yml
+conda activate aira-local
+```
+
+If the environment already exists and needs to be updated:
+
+```bash
+conda env update -f environment.yml --prune
+conda activate aira-local
+```
+
+The main scientific dependencies are:
+
+- `pandas`, `numpy`, `scipy`;
+- `scikit-learn`;
+- `xgboost`;
+- `shap`;
+- `matplotlib`, `seaborn`;
+- `cairosvg`, `pillow`;
+- `tqdm`, `openpyxl`, `python-docx`.
+
+### Reproducibility Levels
+
+There are three practical levels of reproducibility.
+
+1. **Full raw-data reconstruction.** This starts from the original pollutant,
+   traffic, meteorological, and airport sources and rebuilds the merged hourly
+   table. This level requires access to all original sources, including the
+   non-public airport operation records.
+2. **Computational reproduction from the merged dataset.** This starts from
+   `Datasets_Raw/hourly_merged_2023_2025.csv` and reruns the modelling,
+   ablation, interpretation, wind-regime, and cross-pollutant analyses. This is
+   the recommended route for reproducing the results in the repository.
+3. **Inspection-only reproduction.** This uses the existing CSV outputs under
+   `Analysis/` and the generated plots to inspect all metrics, ablation deltas,
+   SHAP summaries, wind contrasts, and paper figures without rerunning the full
+   compute pipeline.
+
+### Data Preparation Scripts
+
+The following scripts are used to build intermediate data sources or the merged
+hourly table:
+
+- `merge_blq_traffic.py`
+- `merge_hourly_datasets.py`
+- `merge_meteo.py`
+- `merge_porta_san_felice_pollutants.py`
+- `merge_spire_flow.py`
+
+These scripts are relevant when the original raw data are available. For most
+analysis reruns, the required starting point is already the merged file
+`Datasets_Raw/hourly_merged_2023_2025.csv`.
+
+### Main Analysis Order
+
+The analyses have dependencies. The recommended order is:
+
+1. run the forecasting, ablation, SHAP, and model-comparison pipeline;
+2. run the wind-regime and spatial-gradient analysis;
+3. run the airport-response descriptive analysis;
+4. run the cross-pollutant synthesis after the forecasting outputs exist;
+5. generate the paper figures after the relevant analysis outputs exist.
+
+The reason for this order is that `cross_pollutant_analysis.py` does not refit
+models. It reads and reorganizes outputs produced by the `explain` and
+`upwind/downwind` analyses. Therefore, it must be executed after the upstream
+CSV files have been generated.
+
+### Local Execution
+
+From the repository root, after activating the conda environment, the main
+scripts can be run locally as follows:
+
+```bash
+python explain_pollutants_by_feature_groups.py
+python upwind_downwind_analysis.py
+python airport_response_analysis.py
+python cross_pollutant_analysis.py
+python prepare_paper_figures.py
+```
+
+For a lighter local run or debugging session, it is advisable to run one
+component at a time and inspect the corresponding output directory before moving
+to the next step.
+
+### SLURM Execution
+
+For the full analyses, the repository includes SLURM scripts:
+
+- `explain_pollutants.slurm`
+- `upwind_downwind.slurm`
+- `airport_response_analysis.slurm`
+- `cross_pollutant_analysis.slurm`
+- `prepare_paper_figures.slurm`
+
+The standard submission commands are:
+
+```bash
+sbatch explain_pollutants.slurm
+sbatch upwind_downwind.slurm
+sbatch airport_response_analysis.slurm
+sbatch cross_pollutant_analysis.slurm
+sbatch prepare_paper_figures.slurm
+```
+
+Since the cross-pollutant analysis depends on the outputs of the explain
+pipeline, the repository also provides:
+
+- `submit_explain_then_cross.sh`
+
+This script submits `cross_pollutant_analysis.slurm` after
+`explain_pollutants.slurm` has completed successfully. It should be used when
+the full workflow is run on a cluster and dependency ordering must be enforced.
+
+To submit the available analyses together, the repository also includes:
+
+- `submit_all_analyses.sh`
+
+### Expected Output Directories
+
+The main generated outputs are written under `Analysis/`:
+
+- `Analysis/slurm_full_explain/`
+- `Analysis/slurm_full_upwind/`
+- `Analysis/airport_response_full/`
+- `Analysis/cross_pollutant/`
+
+Each directory contains CSV files with metrics and summaries, plus a `plots/`
+subdirectory with figures. The README tables are summaries of these outputs, not
+independent manually curated results.
+
+### Determinism and Validation Design
+
+The main forecasting analysis uses expanding-window temporal cross-validation.
+Rows are interpreted as forecast origins, and labels are generated by shifting
+the target by the forecast horizon. Lagged and rolling features are shifted so
+that they use information available at or before the forecast origin. Missing
+predictor values are imputed within each temporal fold using training-set
+medians, and the same medians are applied to the corresponding test fold.
+
+This design is intended to avoid temporal leakage. Because the evaluation is
+time ordered, results may still vary slightly if model implementations, package
+versions, or default numerical behaviour change. The `environment.yml` file is
+therefore part of the reproducibility record.
+
+### Regenerating Paper Figures
+
+The paper figures are prepared from analysis outputs with:
+
+```bash
+python prepare_paper_figures.py
+```
+
+or, on SLURM:
+
+```bash
+sbatch prepare_paper_figures.slurm
+```
+
+The script expects the relevant analysis outputs to be present under
+`Analysis/`. If those directories are missing, rerun the upstream analyses first.
+
+### Cleaning and Rerunning
+
+To reproduce a complete run from scratch, remove or archive the generated
+analysis-output directories under `Analysis/`, keep the input dataset under
+`Datasets_Raw/`, and rerun the analysis scripts in the order described above.
+The datasets should not be deleted unless the raw-data merge step is also being
+repeated.
+
+### Result Inspection
+
+The most important CSV files for verification are:
+
+- `Analysis/slurm_full_explain/advanced_temporal_cv_summary.csv`
+- `Analysis/slurm_full_explain/advanced_extended_ablation_delta_summary.csv`
+- `Analysis/slurm_full_explain/advanced_group_shap.csv`
+- `Analysis/slurm_full_explain/advanced_xgboost_native_feature_importances_summary.csv`
+- `Analysis/slurm_full_upwind/upwind_downwind_summary.csv`
+- `Analysis/slurm_full_upwind/upwind_downwind_matched_summary.csv`
+- `Analysis/slurm_full_upwind/upwind_downwind_bootstrap_effects.csv`
+- `Analysis/cross_pollutant/cross_pollutant_overview.csv`
+- `Analysis/cross_pollutant/cross_pollutant_family_overview.csv`
+
+These files are sufficient to verify the main claims about predictive
+performance, ablation hierarchy, SHAP interpretation, and wind-regime contrasts.
+
+## 1. Purpose of the Repository
+
+The objective of this repository is not only to obtain accurate predictive
+models, but also to understand **which type of information** makes pollutant
+concentrations predictable in an urban context influenced by:
+
+- urban traffic measured by loop detectors;
+- BLQ airport activity;
+- meteorology;
+- temporal memory in the pollutant time series;
+- multi-station and multi-pollutant context.
+
+The distinction between forecasting and interpretation is central. A model may
+predict a target accurately simply because it exploits the persistence of the
+series. This is operationally useful, but it is not sufficient to support a
+physical or source-specific interpretation. For this reason, the repository
+separates four analytical layers:
+
+1. single-target forecasting with and without target autoregression;
+2. multi-target forecasting to assess whether shared information exists across
+   stations and pollutants;
+3. `upwind/downwind` analysis and spatial gradients to test the physical
+   consistency of airport-related signals;
+4. an explicit `cross_pollutant` synthesis to compare chemical families and
+   targets in a structured manner.
+
+## 2. Key Result of the Current Run
+
+The most robust result of the current run is not simply which model obtains the
+highest `R2`, but **which information blocks remain important when they are
+systematically removed**.
+
+In the extended single-target `xgboost` ablation, the strongest average
+contributions are:
 
 - `meteo`: `mean delta R2 = +0.087`
 - `other_pollutants`: `+0.026`
 - `other_pollutants_porta_san_felice`: `+0.021`
 - `rolling_features`: `+0.017`
 
-I blocchi aeroportuali piu' raffinati hanno invece contributi medi molto piu'
-piccoli:
+By contrast, the more detailed airport-related blocks have much smaller average
+contributions:
 
 - `airport`: `+0.001`
 - `station_wind_bools`: `-0.001`
 - `airport_service_type`: `-0.002`
 - `airport_wind_interaction`: `-0.003`
 
-La lettura corretta non e' quindi "l'aeroporto non conta", ma una lettura piu'
-precisa:
+The correct interpretation is therefore not that the airport is irrelevant, but
+a more precise statement:
 
-- il contributo aeroportuale esiste;
-- non domina in media l'intera matrice target-orizzonte;
-- emerge soprattutto in **casi selettivi** e non come driver uniforme;
-- la struttura media del problema resta guidata soprattutto da meteo, contesto
-  multi-inquinante e memoria recente aggregata.
+- the airport contribution exists;
+- it does not dominate the whole target-horizon matrix on average;
+- it emerges mainly in **selective cases**, rather than as a uniform driver;
+- the average structure of the problem remains primarily governed by
+  meteorology, multi-pollutant context, and recent aggregated temporal memory.
 
-## 3. Stato attuale della repository
+## 3. Current Repository Structure
 
-La repo contiene quattro blocchi analitici distinti.
+The repository contains four distinct analytical components.
 
-### 3.1. Parte `explain`
+### 3.1. `explain` Component
 
 Script:
 
 - `explain_pollutants_by_feature_groups.py`
 
-Funzione:
+Purpose:
 
-- forecasting multi-orizzonte single-target;
-- confronto tra modelli;
-- confronto tra setup con e senza autoregressione;
-- ablazioni mirate e ablazione estesa;
-- SHAP per gruppi;
-- importance native di `XGBoost`;
-- confronto multioutput `XGBoost`.
+- multi-horizon single-target forecasting;
+- model comparison;
+- comparison between setups with and without target autoregression;
+- targeted and extended ablations;
+- group-level SHAP;
+- native `XGBoost` feature importance;
+- multioutput `XGBoost` comparison.
 
-Output principali:
+Main outputs:
 
 - `Analysis/slurm_full_explain/advanced_temporal_cv_scores.csv`
 - `Analysis/slurm_full_explain/advanced_temporal_cv_predictions.csv`
@@ -106,24 +328,24 @@ Output principali:
 - `Analysis/slurm_full_explain/pollutant_station_reference_stats.csv`
 - `Analysis/slurm_full_explain/plots/`
 
-### 3.2. Parte `upwind/downwind`
+### 3.2. `upwind/downwind` Component
 
 Script:
 
 - `upwind_downwind_analysis.py`
 
-Funzione:
+Purpose:
 
-- classificazione `downwind`, `upwind`, `crosswind`, `calm`;
-- confronti descrittivi tra regimi;
-- regressioni con interazione `BLQ x downwind`;
-- matching `downwind/upwind`;
-- bootstrap a blocchi;
-- sensibilita' alla soglia;
-- gradienti spaziali e DID multi-stazione;
-- SHAP per regime.
+- classification into `downwind`, `upwind`, `crosswind`, and `calm`;
+- descriptive comparisons across wind regimes;
+- regressions with `BLQ x downwind` interactions;
+- `downwind/upwind` matching;
+- block bootstrap;
+- threshold sensitivity analysis;
+- spatial gradients and multi-station DID analysis;
+- SHAP by wind regime.
 
-Output principali:
+Main outputs:
 
 - `Analysis/slurm_full_upwind/upwind_downwind_summary.csv`
 - `Analysis/slurm_full_upwind/upwind_downwind_blq_effects.csv`
@@ -145,21 +367,21 @@ Output principali:
 - `Analysis/slurm_full_upwind/multistation_station_wind_features.csv`
 - `Analysis/slurm_full_upwind/plots/`
 
-### 3.3. Parte `airport_response`
+### 3.3. `airport_response` Component
 
 Script:
 
 - `airport_response_analysis.py`
 
-Funzione:
+Purpose:
 
-- curve empiriche target vs BLQ per regime;
-- profili di dipendenza parziale;
-- finestre evento;
-- probabilita' di superamento soglia;
-- gradienti descrittivi multi-stazione.
+- empirical target-versus-BLQ curves by regime;
+- partial dependence profiles;
+- event windows;
+- exceedance probabilities;
+- descriptive multi-station gradients.
 
-Output principali:
+Main outputs:
 
 - `Analysis/airport_response_full/blq_empirical_response_curves.csv`
 - `Analysis/airport_response_full/blq_partial_dependence_model_metrics.csv`
@@ -170,23 +392,24 @@ Output principali:
 - `Analysis/airport_response_full/blq_spatial_gradient_response.csv`
 - `Analysis/airport_response_full/plots/`
 
-Questa parte e' **descrittiva-esplicativa**, non causale. Serve a rendere piu'
-leggibile la relazione tra BLQ, vento, target e contesto urbano.
+This component is **descriptive and explanatory**, not causal. Its purpose is to
+make the relationship among BLQ activity, wind, pollutant targets, and urban
+context more interpretable.
 
-### 3.4. Parte `cross_pollutant`
+### 3.4. `cross_pollutant` Component
 
 Script:
 
 - `cross_pollutant_analysis.py`
 
-Funzione:
+Purpose:
 
-- confronto esplicito tra target e famiglie chimiche;
-- sintesi della prevedibilita' multi-orizzonte;
-- sintesi dei gruppi ablativi dominanti;
-- sintesi standardizzata dei contrasti di vento.
+- explicit comparison among targets and chemical families;
+- synthesis of multi-horizon predictability;
+- synthesis of dominant ablation groups;
+- standardized synthesis of wind-regime contrasts.
 
-Output principali:
+Main outputs:
 
 - `Analysis/cross_pollutant/cross_pollutant_predictability_summary.csv`
 - `Analysis/cross_pollutant/cross_pollutant_predictability_target_overview.csv`
@@ -202,29 +425,30 @@ Output principali:
 - `Analysis/cross_pollutant/cross_pollutant_runtime_profile.csv`
 - `Analysis/cross_pollutant/plots/`
 
-Questa quarta analisi non ricalcola i modelli di base. Riordina e sintetizza i
-risultati gia' prodotti dagli altri blocchi.
+This fourth analysis does not refit the base models. It reorganizes and
+summarizes the results already produced by the other components.
 
-## 4. Dataset usato
+## 4. Dataset
 
 File:
 
 - `Datasets_Raw/hourly_merged_2023_2025.csv`
 
-Caratteristiche:
+Characteristics:
 
-- `9.792` righe orarie
-- `61` colonne
-- intervallo: `2024-05-29 00:00:00` -> `2025-07-10 23:00:00`
-- chiave temporale: `datetime`
+- `9,792` hourly rows
+- `61` columns
+- time span: `2024-05-29 00:00:00` -> `2025-07-10 23:00:00`
+- temporal key: `datetime`
 
-Questo file rappresenta l'intersezione temporale comune tra tutti i blocchi dati
-utilizzati. La scelta e' corretta: evita di addestrare modelli su periodi in cui
-uno dei blocchi principali manca del tutto.
+This file represents the common temporal intersection among all data blocks used
+in the analysis. This choice is methodologically appropriate because it avoids
+training models on periods in which one of the main information blocks is
+entirely unavailable.
 
-### 4.1. Target analizzati
+### 4.1. Analysed Targets
 
-I target della run corrente sono:
+The targets in the current run are:
 
 - `NO2_porta_san_felice`
 - `CO_porta_san_felice`
@@ -234,9 +458,9 @@ I target della run corrente sono:
 - `O3_giardini_margherita`
 - `O3_via_chiarini`
 
-Statistiche descrittive nel dataset unificato:
+Descriptive statistics in the unified dataset:
 
-| target | unita' | minimo | medio | massimo |
+| target | unit | minimum | mean | maximum |
 | --- | --- | ---: | ---: | ---: |
 | `NO2_porta_san_felice` | `ug/m3` | `2.000` | `26.586` | `96.000` |
 | `CO_porta_san_felice` | `mg/m3` | `0.000` | `0.468` | `2.500` |
@@ -246,65 +470,65 @@ Statistiche descrittive nel dataset unificato:
 | `O3_giardini_margherita` | `ug/m3` | `0.000` | `50.426` | `188.000` |
 | `O3_via_chiarini` | `ug/m3` | `0.000` | `45.810` | `213.000` |
 
-Lettura utile:
+Useful interpretation:
 
-- `NO2` e' disponibile su tre stazioni e quindi e' il candidato naturale per i
-  confronti spaziali;
-- `O3` e' disponibile sulle due stazioni esterne ed e' il target piu' adatto a
-  leggere dinamiche meteorologiche e di fondo;
-- `CO` e `C6H6` sono concentrati su Porta San Felice.
+- `NO2` is available at three stations and is therefore the natural candidate
+  for spatial comparisons;
+- `O3` is available at the two external stations and is the most suitable target
+  for studying meteorological and background dynamics;
+- `CO` and `C6H6` are observed at Porta San Felice.
 
-### 4.2. Blocchi informativi
+### 4.2. Information Blocks
 
-Il dataset integra:
+The dataset integrates:
 
-- traffico aeroportuale BLQ, incluso il dettaglio per `SERVICE_TYPE_CODE`;
-- traffico urbano da spire, mantenute come colonne separate;
-- meteo da due sorgenti, `_aero` e `_centro`;
-- altri inquinanti come contesto multi-stazione e multi-inquinante.
+- BLQ airport traffic, including the `SERVICE_TYPE_CODE` decomposition;
+- urban traffic from loop detectors, kept as separate columns;
+- meteorology from two sources, `_aero` and `_centro`;
+- other pollutants as multi-station and multi-pollutant context.
 
-La selezione delle spire mantiene `20` sensori unici:
+The loop-detector selection retains `20` unique sensors:
 
-- `5` piu' vicini a BLQ;
-- `5` piu' vicini a `Porta San Felice`;
-- `5` piu' vicini a `Giardini Margherita`;
-- `5` piu' vicini a `Via Chiarini`.
+- `5` closest to BLQ;
+- `5` closest to `Porta San Felice`;
+- `5` closest to `Giardini Margherita`;
+- `5` closest to `Via Chiarini`.
 
-### 4.3. Feature temporali e derivate
+### 4.3. Temporal and Derived Features
 
-Il pipeline costruisce:
+The pipeline constructs:
 
-- feature calendario:
+- calendar features:
   - `hour`, `dayofweek`, `month`, `is_weekend`
   - `hour_sin`, `hour_cos`, `month_sin`, `month_cos`
-- lag:
+- lags:
   - `_lag_1h`, `_lag_2h`, `_lag_3h`, `_lag_6h`, `_lag_12h`, `_lag_24h`
-- differenze:
+- differences:
   - `_diff_1h`
-- rolling mean:
+- rolling means:
   - `_rolling_3h_mean`, `_rolling_6h_mean`, `_rolling_12h_mean`, `_rolling_24h_mean`
-- rolling std:
+- rolling standard deviations:
   - `_rolling_3h_std`, `_rolling_6h_std`, `_rolling_12h_std`, `_rolling_24h_std`
-- interazioni con il vento rispetto alla geometria aeroporto -> stazione.
+- wind interactions relative to the airport-to-station geometry.
 
-Questo e' tecnicamente importante perche' il problema non e' una regressione
-tabellare statica: i target dipendono da ritardo, accumulo recente, variabilita'
-locale e regime di trasporto.
+This is technically important because the problem is not a static tabular
+regression task: the targets depend on lagged effects, recent accumulation, local
+variability, and transport regimes.
 
-## 5. Metodi e logica delle analisi
+## 5. Methods and Analytical Logic
 
-### 5.1. Forecasting single-target
+### 5.1. Single-Target Forecasting
 
-Domanda:
+Question:
 
-- quanto bene si riesce a prevedere ciascun target a `1h`, `3h`, `6h`, `12h`,
+- how accurately can each target be predicted at `1h`, `3h`, `6h`, `12h`, and
   `24h`?
 
-Schema:
+Design:
 
-- validazione temporale `expanding-window` a `5` fold;
-- metriche: `R2`, `MAE`, `RMSE`, `MAPE`;
-- modelli confrontati:
+- `5`-fold expanding-window temporal validation;
+- metrics: `R2`, `MAE`, `RMSE`, `MAPE`;
+- compared models:
   - `ridge`
   - `decision_tree`
   - `random_forest`
@@ -313,136 +537,139 @@ Schema:
   - `xgbrf`
   - `xgboost`
 
-Le due viste sono:
+The two views are:
 
-- `no_target_*`: il modello non usa il passato del target;
-- `with_target_*`: il modello usa anche il passato del target.
+- `no_target_*`: the model does not use the target's past values;
+- `with_target_*`: the model also uses the target's past values.
 
-La prima vista e' piu' interpretativa. La seconda e' piu' predittiva.
+The first view is more interpretative. The second is more predictive.
 
-### 5.2. Forecasting multioutput
+### 5.2. Multioutput Forecasting
 
-Domanda:
+Question:
 
-- il contesto condiviso tra stazioni e inquinanti aggiunge informazione utile?
+- does shared context across stations and pollutants provide useful information?
 
-Metodo:
+Method:
 
 - `MultiOutputRegressor(XGBoost)`
 
-Lo scopo non e' sostituire il single-target, ma verificare se esista un guadagno
-leggibile quando i target vengono previsti insieme.
+The purpose is not to replace the single-target setup, but to assess whether a
+measurable gain appears when targets are predicted within a common multioutput
+framework.
 
-### 5.3. Ablazioni
+### 5.3. Ablations
 
-Domanda:
+Question:
 
-- quanto perde il modello quando si rimuove un blocco coerente di feature?
+- how much does the model lose when a coherent feature block is removed?
 
-Livelli usati:
+Levels used:
 
-- ablazioni mirate su `service_type`, `station_wind_bools` e loro rimozione
-  congiunta;
-- ablazione estesa su gruppi piu' ampi come `meteo`, `urban_traffic`,
+- targeted ablations on `service_type`, `station_wind_bools`, and their joint
+  removal;
+- extended ablation on broader groups such as `meteo`, `urban_traffic`,
   `other_pollutants`, `rolling_features`, `airport`, `airport_service_type`,
-  `wind_transport`.
+  and `wind_transport`.
 
-L'ablazione risponde a una domanda diversa dalle SHAP:
+Ablation answers a different question from SHAP:
 
-- SHAP dice cosa il modello usa;
-- l'ablazione dice cosa il modello perde davvero se un blocco manca.
+- SHAP indicates what the model uses;
+- ablation indicates how much predictive performance is lost when a block is
+  absent.
 
-### 5.4. SHAP e importance native
+### 5.4. SHAP and Native Feature Importance
 
-Uso:
+Files used:
 
 - `advanced_group_shap.csv`
 - `advanced_multioutput_group_shap.csv`
 - `advanced_xgboost_native_feature_importances_summary.csv`
 - `advanced_multioutput_xgboost_native_feature_importances_summary.csv`
 
-Scopo:
+Purpose:
 
-- capire quali gruppi o feature puntuali guidano le predizioni;
-- distinguere il peso di autoregressione, meteo, traffico, aeroporto e contesto
-  multi-inquinante.
+- to understand which groups or individual features drive the predictions;
+- to distinguish the roles of autoregression, meteorology, traffic, airport
+  activity, and multi-pollutant context.
 
-### 5.5. Analisi `upwind/downwind`
+### 5.5. `upwind/downwind` Analysis
 
-Domanda:
+Question:
 
-- il segnale associato a BLQ e' coerente con un'ipotesi fisica di trasporto
-  verso le stazioni?
+- is the signal associated with BLQ consistent with a physical transport
+  hypothesis toward the monitoring stations?
 
-Metodo:
+Method:
 
-- classificazione delle ore in `downwind`, `upwind`, `crosswind`, `calm`;
-- confronti descrittivi per regime;
-- regressioni con termini:
+- classification of hours into `downwind`, `upwind`, `crosswind`, and `calm`;
+- descriptive comparisons by wind regime;
+- regressions with the terms:
   - `blq_activity`
   - `downwind_flag`
   - `upwind_flag`
   - `blq_x_downwind`
   - `blq_x_upwind`
-- matching `downwind/upwind`;
-- bootstrap a blocchi;
-- sensibilita' alla soglia.
+- `downwind/upwind` matching;
+- block bootstrap;
+- threshold sensitivity analysis.
 
-`downwind` significa che l'aria si muove da BLQ verso la stazione, non
-genericamente "vento favorevole".
+`downwind` means that the air mass moves from BLQ toward the station. It does
+not simply mean "favourable wind".
 
-### 5.6. Gradienti spaziali
+### 5.6. Spatial Gradients
 
-Domanda:
+Question:
 
-- il segnale di BLQ si vede meglio nei livelli assoluti o nei gradienti tra
-  stazioni?
+- is the BLQ-related signal more visible in absolute levels or in gradients
+  between stations?
 
-Metodo:
+Method:
 
-- costruzione di gradienti come:
+- construction of gradients such as:
   - `NO2_psf_minus_chiarini`
   - `NO2_psf_minus_giardini`
   - `O3_chiarini_minus_giardini`
-- regressioni DID multi-stazione sui gradienti.
+- multi-station DID regressions on the gradients.
 
-### 5.7. Analisi `airport_response`
+### 5.7. `airport_response` Analysis
 
-Domanda:
+Question:
 
-- esistono pattern empirici leggibili tra BLQ, vento e target che siano piu'
-  intuitivi dei soli coefficienti?
+- are there empirically readable patterns between BLQ activity, wind, and
+  pollutant targets that are more intuitive than regression coefficients alone?
 
-Questa parte include:
+This component includes:
 
-- curve target vs BLQ per regime;
+- target-versus-BLQ curves by regime;
 - partial dependence;
-- finestre evento;
-- superamento soglie alte;
-- gradienti descrittivi per classi di BLQ.
+- event windows;
+- high-threshold exceedance;
+- descriptive gradients by BLQ class.
 
-E' una parte **esplicativa**, non una dimostrazione causale.
+It is an **explanatory** component, not a causal demonstration.
 
-### 5.8. Analisi `cross_pollutant`
+### 5.8. `cross_pollutant` Analysis
 
-Domanda:
+Question:
 
-- in cosa `NO2`, `CO`, `C6H6` e `O3` si somigliano davvero, e in cosa divergono?
+- in what respects are `NO2`, `CO`, `C6H6`, and `O3` empirically similar, and in
+  what respects do they differ?
 
-Questa parte riaggrega gli output precedenti su tre assi:
+This component re-aggregates previous outputs along three axes:
 
-- prevedibilita';
-- dipendenza dai gruppi di feature;
-- risposta ai regimi di vento.
+- predictability;
+- dependence on feature groups;
+- response to wind regimes.
 
-## 6. Risultati predittivi: vista senza storico del target
+## 6. Predictive Results: View Without Target History
 
-Questa e' la sezione piu' importante se l'obiettivo e' capire **quanto segnale
-esterno** esista davvero.
+This is the most important section if the objective is to understand **how much
+external information** is available.
 
-La tabella seguente riporta, per ogni target e orizzonte, il **miglior setup
-single-target senza autoregressione**, quindi non tutti i 1960 risultati grezzi
-ma il miglior compromesso modello + feature set per ciascun caso.
+The following table reports, for each target and horizon, the **best single-target
+setup without autoregression**. It therefore does not contain all 1,960 raw
+results, but the best model and feature-set combination for each case.
 
 | target | h | model | feature set | R2 | MAE | RMSE | MAPE |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: |
@@ -482,19 +709,19 @@ ma il miglior compromesso modello + feature set per ciascun caso.
 | `O3_via_chiarini` | `12` | `xgboost` | `no_target_without_station_wind_bools` | `0.422` | `14.250` | `18.067` | `102.97` |
 | `O3_via_chiarini` | `24` | `xgboost` | `no_target_without_service_type` | `0.342` | `15.414` | `19.417` | `119.03` |
 
-Lettura principale:
+Main interpretation:
 
-- `O3` e `C6H6` sono i target piu' leggibili da feature esterne;
-- `CO` e' intermedio;
-- `NO2`, soprattutto a Porta San Felice, resta difficile senza storico del
-  target;
-- `ExtraTrees` e `AdaBoost` compaiono come migliori in pochi casi specifici,
-  soprattutto a orizzonte lungo.
+- `O3` and `C6H6` are the most readable targets from external features;
+- `CO` is intermediate;
+- `NO2`, especially at Porta San Felice, remains difficult without target
+  history;
+- `ExtraTrees` and `AdaBoost` emerge as best models only in a few specific
+  cases, mainly at long horizons.
 
-## 7. Risultati predittivi: vista con storico del target
+## 7. Predictive Results: View With Target History
 
-Questa vista misura il potenziale predittivo operativo quando la persistenza del
-target viene concessa al modello.
+This view measures the operational predictive potential when target persistence
+is made available to the model.
 
 | target | h | model | feature set | R2 | MAE | RMSE | MAPE |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: |
@@ -534,47 +761,50 @@ target viene concessa al modello.
 | `O3_via_chiarini` | `12` | `xgboost` | `with_target_without_station_wind_bools` | `0.436` | `13.762` | `17.593` | `107.09` |
 | `O3_via_chiarini` | `24` | `extra_trees` | `with_target_without_service_type_or_station_wind_bools` | `0.352` | `15.186` | `19.033` | `121.93` |
 
-Lettura principale:
+Main interpretation:
 
-- il salto piu' forte con autoregressione si vede su `NO2` e `CO`;
-- `C6H6` migliora, ma molto meno di `NO2`;
-- `O3` era gia' forte senza storico e resta forte con storico;
-- a lungo orizzonte `ExtraTrees` emerge davvero per alcuni target, soprattutto
-  `O3_giardini_margherita`, `O3_via_chiarini` e `NO2_giardini_margherita`.
+- the largest autoregressive gains are observed for `NO2` and `CO`;
+- `C6H6` improves, but much less than `NO2`;
+- `O3` is already strong without target history and remains strong with target
+  history;
+- at long horizons, `ExtraTrees` is competitive for some targets,
+  especially `O3_giardini_margherita`, `O3_via_chiarini`, and
+  `NO2_giardini_margherita`.
 
-## 8. Quale modello vince davvero
+## 8. Model Comparison
 
-La risposta corretta non e' piu' "vince sempre `XGBoost`", ma una formulazione
-piu' precisa:
+The correct answer is no longer simply "`XGBoost` always wins", but a more
+precise formulation:
 
-- `XGBoost` resta il modello dominante nel complesso;
-- il dominio e' piu' netto a breve orizzonte;
-- a `24h` entrano piu' spesso in gioco `ExtraTrees` e, in un caso, `AdaBoost`.
+- `XGBoost` remains the dominant model overall;
+- its dominance is clearer at short horizons;
+- at `24h`, `ExtraTrees` appears more frequently, and `AdaBoost` appears in one
+  case.
 
-Esempi concreti di eccezioni:
+Concrete exceptions:
 
-- `NO2_giardini_margherita` a `24h`: migliore `ExtraTrees`, `R2 = 0.004`;
-- `O3_giardini_margherita` a `24h`: migliore `ExtraTrees`, `R2 = 0.220`;
-- `O3_via_chiarini` a `24h`: migliore `ExtraTrees`, `R2 = 0.352`;
-- `NO2_porta_san_felice` a `12h` senza autoregressione: migliore `AdaBoost`,
-  `R2 = -0.062`, comunque in una zona difficile per tutti i modelli.
+- `NO2_giardini_margherita` at `24h`: best model `ExtraTrees`, `R2 = 0.004`;
+- `O3_giardini_margherita` at `24h`: best model `ExtraTrees`, `R2 = 0.220`;
+- `O3_via_chiarini` at `24h`: best model `ExtraTrees`, `R2 = 0.352`;
+- `NO2_porta_san_felice` at `12h` without autoregression: best model `AdaBoost`,
+  `R2 = -0.062`, still within a difficult region for all models.
 
-Interpretazione:
+Interpretation:
 
-- il problema e' chiaramente non lineare;
-- gli ensemble ad alberi sono la famiglia giusta;
-- `XGBoost` resta il riferimento principale;
-- `ExtraTrees` e' il challenger piu' credibile sui target piu' regolari o piu'
-  rumorosi a lungo orizzonte.
+- the problem is clearly nonlinear;
+- tree ensembles are the appropriate model family;
+- `XGBoost` remains the main reference model;
+- `ExtraTrees` is the most credible challenger for more regular or noisier
+  long-horizon targets.
 
-## 9. Single-target vs multioutput
+## 9. Single-Target Versus Multioutput
 
-Il multioutput non sostituisce il single-target come baseline generale migliore,
-ma produce alcuni miglioramenti misurabili.
+The multioutput setup does not replace the single-target setup as the best
+general baseline, but it produces some measurable improvements.
 
-Casi in cui il multioutput supera il miglior single-target:
+Cases in which multioutput outperforms the best single-target result:
 
-| target | h | feature set multioutput | R2 multioutput | best single-target R2 | delta |
+| target | h | multioutput feature set | multioutput R2 | best single-target R2 | delta |
 | --- | ---: | --- | ---: | ---: | ---: |
 | `NO2_giardini_margherita` | `24` | `no_pollutant_context_without_service_type_or_station_wind_bools` | `0.070` | `0.004` | `+0.066` |
 | `NO2_giardini_margherita` | `24` | `no_pollutant_context_without_station_wind_bools` | `0.051` | `0.004` | `+0.047` |
@@ -585,116 +815,119 @@ Casi in cui il multioutput supera il miglior single-target:
 | `C6H6_porta_san_felice` | `3` | `with_pollutant_context` | `0.465` | `0.448` | `+0.017` |
 | `NO2_via_chiarini` | `6` | `with_pollutant_context_without_service_type` | `0.247` | `0.236` | `+0.011` |
 
-Conclusione:
+Conclusion:
 
-- il contesto multi-stazione e multi-inquinante contiene informazione reale;
-- il vantaggio non e' uniforme;
-- i guadagni piu' netti si vedono su `NO2_giardini_margherita`,
-  `C6H6_porta_san_felice` e `O3_via_chiarini`.
+- the multi-station and multi-pollutant context contains substantive predictive
+  information;
+- the advantage is not uniform;
+- the clearest gains are observed for `NO2_giardini_margherita`,
+  `C6H6_porta_san_felice`, and `O3_via_chiarini`.
 
-## 10. Ablazioni: cosa conta davvero
+## 10. Ablations: Dominant Information Blocks
 
-### 10.1. Gerarchia media dei gruppi
+### 10.1. Average Group Hierarchy
 
-Ablazione estesa single-target `xgboost`, media su target e orizzonti:
+Extended single-target `xgboost` ablation, averaged over targets and horizons:
 
-| gruppo rimosso | mean delta R2 | lettura |
+| removed group | mean delta R2 | interpretation |
 | --- | ---: | --- |
-| `meteo` | `+0.087` | contributo medio piu' forte |
-| `other_pollutants` | `+0.026` | secondo blocco medio piu' importante |
-| `other_pollutants_porta_san_felice` | `+0.021` | contesto locale forte su PSF |
-| `rolling_features` | `+0.017` | memoria recente aggregata molto utile |
-| `other_pollutants_giardini_margherita` | `+0.006` | contributo locale positivo ma secondario |
-| `urban_traffic` | `+0.004` | contributo medio positivo ma contenuto |
-| `diff_features` | `+0.003` | contributo piccolo ma reale |
-| `lag_features` | `+0.002` | meno forti delle rolling |
-| `wind_transport` | `+0.002` | contributo medio piccolo |
-| `airport` | `+0.001` | positivo ma debole in media |
-| `station_wind_bools` | `-0.001` | quasi nullo in media |
-| `airport_service_type` | `-0.002` | selettivo, non uniforme |
-| `airport_wind_interaction` | `-0.003` | selettivo, non uniforme |
+| `meteo` | `+0.087` | strongest average contribution |
+| `other_pollutants` | `+0.026` | second most important average block |
+| `other_pollutants_porta_san_felice` | `+0.021` | strong local context at PSF |
+| `rolling_features` | `+0.017` | highly useful recent aggregated memory |
+| `other_pollutants_giardini_margherita` | `+0.006` | positive but secondary local contribution |
+| `urban_traffic` | `+0.004` | positive but limited average contribution |
+| `diff_features` | `+0.003` | small but real contribution |
+| `lag_features` | `+0.002` | weaker than rolling features |
+| `wind_transport` | `+0.002` | small average contribution |
+| `airport` | `+0.001` | positive but weak on average |
+| `station_wind_bools` | `-0.001` | nearly null on average |
+| `airport_service_type` | `-0.002` | selective, not uniform |
+| `airport_wind_interaction` | `-0.003` | selective, not uniform |
 
-### 10.2. Dove il blocco aeroporto aiuta davvero
+### 10.2. Where the Airport Block Provides Predictive Information
 
-Il blocco `airport` aggregato mostra i guadagni piu' leggibili soprattutto su:
+The aggregate `airport` block shows the clearest gains mainly for:
 
-- `O3_giardini_margherita` a `24h`: `delta R2 = +0.074`
-- `C6H6_porta_san_felice` a `24h`: `+0.047`
-- `O3_giardini_margherita` a `12h`: `+0.039`
-- `NO2_porta_san_felice` a `24h`: `+0.027`
+- `O3_giardini_margherita` at `24h`: `delta R2 = +0.074`
+- `C6H6_porta_san_felice` at `24h`: `+0.047`
+- `O3_giardini_margherita` at `12h`: `+0.039`
+- `NO2_porta_san_felice` at `24h`: `+0.027`
 
-La scomposizione `airport_service_type` emerge soprattutto su:
+The `airport_service_type` decomposition emerges mainly for:
 
-- `C6H6_porta_san_felice` a `24h`: `+0.043`
-- `NO2_porta_san_felice` a `12h`: `+0.037`
-- `C6H6_porta_san_felice` a `12h`: `+0.026`
-- `NO2_porta_san_felice` a `1h`: `+0.023`
-- `NO2_porta_san_felice` a `6h`: `+0.021`
-- `CO_porta_san_felice` a `3h`: `+0.016`
+- `C6H6_porta_san_felice` at `24h`: `+0.043`
+- `NO2_porta_san_felice` at `12h`: `+0.037`
+- `C6H6_porta_san_felice` at `12h`: `+0.026`
+- `NO2_porta_san_felice` at `1h`: `+0.023`
+- `NO2_porta_san_felice` at `6h`: `+0.021`
+- `CO_porta_san_felice` at `3h`: `+0.016`
 
-I booleani `station_wind_bools` mostrano i casi piu' chiari su:
+The `station_wind_bools` block shows the clearest cases for:
 
-- `CO_porta_san_felice` a `24h`: `+0.081`
-- `NO2_giardini_margherita` a `24h`: `+0.053`
-- `CO_porta_san_felice` a `12h`: `+0.030`
+- `CO_porta_san_felice` at `24h`: `+0.081`
+- `NO2_giardini_margherita` at `24h`: `+0.053`
+- `CO_porta_san_felice` at `12h`: `+0.030`
 
-La rimozione congiunta `service_type + station_wind_bools` concentra le perdite
-piu' leggibili su:
+The joint removal of `service_type + station_wind_bools` concentrates the most
+readable losses on:
 
-- `CO_porta_san_felice` a `24h`: `+0.093`
-- `NO2_giardini_margherita` a `24h`: `+0.052 / +0.053`
-- `NO2_porta_san_felice` a `12h`: `+0.031`
-- `NO2_porta_san_felice` a `1h-3h` senza autoregressione: `+0.028`, `+0.028`
+- `CO_porta_san_felice` at `24h`: `+0.093`
+- `NO2_giardini_margherita` at `24h`: `+0.052 / +0.053`
+- `NO2_porta_san_felice` at `12h`: `+0.031`
+- `NO2_porta_san_felice` at `1h-3h` without autoregression: `+0.028`, `+0.028`
 
-### 10.3. Lettura corretta dell'ablazione
+### 10.3. Correct Interpretation of the Ablation
 
-Tre punti:
+Three points follow:
 
-1. i blocchi aeroportuali raffinati non sono decorativi;
-2. il loro contributo e' selettivo, non medio-strutturale;
-3. la struttura robusta del problema resta guidata da:
+1. the refined airport-related blocks are not purely redundant;
+2. their contribution is selective, not structurally dominant on average;
+3. the robust structure of the problem remains governed by:
    - `meteo`
    - `other_pollutants`
    - `rolling_features`
 
-## 11. SHAP e feature importance
+## 11. SHAP and Feature Importance
 
-### 11.1. Lettura per gruppi
+### 11.1. Group-Level Interpretation
 
-Le SHAP di gruppo confermano la struttura gia' vista nelle ablazioni.
+Group-level SHAP confirms the structure already observed in the ablations.
 
-| target | gruppo 1 | gruppo 2 | gruppo 3 | lettura |
+| target | group 1 | group 2 | group 3 | interpretation |
 | --- | --- | --- | --- | --- |
-| `NO2_porta_san_felice` | `rolling_features (12.62)` | `target_autoregressive (7.70)` | `meteo (7.41)` | memoria recente dominante |
-| `CO_porta_san_felice` | `rolling_features (0.191)` | `target_autoregressive (0.154)` | `meteo (0.101)` | persistenza + meteo |
-| `C6H6_porta_san_felice` | `rolling_features (0.448)` | `meteo (0.281)` | `lag_features / other_pollutants (~0.223)` | target piu' leggibile da fattori esterni |
-| `NO2_giardini_margherita` | `rolling_features (7.65)` | `meteo (6.88)` | `target_autoregressive (3.23)` | meteo e memoria pesano insieme |
-| `NO2_via_chiarini` | `rolling_features (10.39)` | `target_autoregressive (6.57)` | `meteo (5.94)` | dinamica recente molto forte |
-| `O3_giardini_margherita` | `rolling_features (31.92)` | `meteo (29.55)` | `target_autoregressive (23.27)` | struttura fortemente regolare |
-| `O3_via_chiarini` | `rolling_features (33.66)` | `meteo (33.01)` | `target_autoregressive (22.65)` | meteo e rolling dominano |
+| `NO2_porta_san_felice` | `rolling_features (12.62)` | `target_autoregressive (7.70)` | `meteo (7.41)` | recent memory dominates |
+| `CO_porta_san_felice` | `rolling_features (0.191)` | `target_autoregressive (0.154)` | `meteo (0.101)` | persistence plus meteorology |
+| `C6H6_porta_san_felice` | `rolling_features (0.448)` | `meteo (0.281)` | `lag_features / other_pollutants (~0.223)` | target more readable from external factors |
+| `NO2_giardini_margherita` | `rolling_features (7.65)` | `meteo (6.88)` | `target_autoregressive (3.23)` | meteorology and memory jointly matter |
+| `NO2_via_chiarini` | `rolling_features (10.39)` | `target_autoregressive (6.57)` | `meteo (5.94)` | recent dynamics are very strong |
+| `O3_giardini_margherita` | `rolling_features (31.92)` | `meteo (29.55)` | `target_autoregressive (23.27)` | highly regular structure |
+| `O3_via_chiarini` | `rolling_features (33.66)` | `meteo (33.01)` | `target_autoregressive (22.65)` | meteorology and rolling features dominate |
 
-### 11.2. Cosa aggiungono i `service_type`
+### 11.2. What `service_type` Adds
 
-Le feature `blq_service_*` compaiono davvero nelle importance:
+The `blq_service_*` features appear in the importance outputs:
 
-- su `NO2_porta_san_felice` emergono soprattutto cargo, mail e combined;
-- su `NO2_via_chiarini` emergono cargo, combined e charter;
-- su `NO2_giardini_margherita` compaiono cargo, charter, scheduled e mail;
-- su `O3` entrano spesso charter e cargo;
-- su `CO` e `C6H6` l'effetto esiste ma resta piu' contenuto.
+- for `NO2_porta_san_felice`, cargo, mail, and combined services emerge most
+  clearly;
+- for `NO2_via_chiarini`, cargo, combined, and charter services emerge;
+- for `NO2_giardini_margherita`, cargo, charter, scheduled, and mail services
+  appear;
+- for `O3`, charter and cargo often enter;
+- for `CO` and `C6H6`, the effect exists but remains smaller.
 
-### 11.3. Lettura finale della parte interpretativa
+### 11.3. Final Interpretation of the Model-Interpretation Component
 
-- le SHAP confermano che i nuovi blocchi aeroportuali non sono fittizi;
-- le ablazioni chiariscono che il loro impatto e' selettivo;
-- la repo, letta correttamente, non supporta una narrativa semplice del tipo
-  "BLQ domina il sistema".
+- SHAP confirms that the new airport-related blocks are not artificial;
+- ablation clarifies that their impact is selective;
+- read correctly, the repository does not support a simple narrative in which
+  "BLQ dominates the system".
 
-## 12. Risultati `upwind/downwind`
+## 12. `upwind/downwind` Results
 
-### 12.1. Contrasto descrittivo `downwind - upwind`
+### 12.1. Descriptive `downwind - upwind` Contrast
 
-| target | unita' | downwind mean | upwind mean | downwind - upwind |
+| target | unit | downwind mean | upwind mean | downwind - upwind |
 | --- | --- | ---: | ---: | ---: |
 | `NO2_porta_san_felice` | `ug/m3` | `28.75` | `29.65` | `-0.90` |
 | `CO_porta_san_felice` | `mg/m3` | `0.554` | `0.468` | `+0.086` |
@@ -704,109 +937,108 @@ Le feature `blq_service_*` compaiono davvero nelle importance:
 | `O3_giardini_margherita` | `ug/m3` | `38.22` | `55.82` | `-17.61` |
 | `O3_via_chiarini` | `ug/m3` | `34.11` | `55.57` | `-21.46` |
 
-Primo messaggio:
+First message:
 
-- `CO` e `C6H6` a PSF sono piu' alti in downwind;
-- `NO2_porta_san_felice` no;
-- `NO2_giardini_margherita` si';
-- `O3` sulle stazioni esterne va nella direzione opposta.
+- `CO` and `C6H6` at PSF are higher under downwind conditions;
+- `NO2_porta_san_felice` is not;
+- `NO2_giardini_margherita` is higher under downwind conditions;
+- `O3` at the external stations moves in the opposite direction.
 
-### 12.2. Matching `downwind/upwind`
+### 12.2. `downwind/upwind` Matching
 
-| target | mean diff downwind - upwind | p-value | lettura |
+| target | mean diff downwind - upwind | p-value | interpretation |
 | --- | ---: | ---: | --- |
-| `NO2_porta_san_felice` | `-1.33` | `0.0030` | piu' basso in downwind anche dopo matching |
-| `CO_porta_san_felice` | `+0.0186` | `0.0122` | segnale positivo piccolo ma robusto |
-| `C6H6_porta_san_felice` | `+0.0152` | `0.3870` | differenza non robusta |
-| `NO2_giardini_margherita` | `+0.843` | `0.0024` | segnale positivo robusto |
-| `NO2_via_chiarini` | `-0.625` | `0.0555` | ambiguo |
-| `O3_giardini_margherita` | `-5.66` | `<0.001` | molto piu' basso in downwind |
-| `O3_via_chiarini` | `-8.98` | `<0.001` | molto piu' basso in downwind |
+| `NO2_porta_san_felice` | `-1.33` | `0.0030` | lower under downwind even after matching |
+| `CO_porta_san_felice` | `+0.0186` | `0.0122` | small but robust positive signal |
+| `C6H6_porta_san_felice` | `+0.0152` | `0.3870` | non-robust difference |
+| `NO2_giardini_margherita` | `+0.843` | `0.0024` | robust positive signal |
+| `NO2_via_chiarini` | `-0.625` | `0.0555` | ambiguous |
+| `O3_giardini_margherita` | `-5.66` | `<0.001` | much lower under downwind |
+| `O3_via_chiarini` | `-8.98` | `<0.001` | much lower under downwind |
 
-### 12.3. Bootstrap a blocchi
+### 12.3. Block Bootstrap
 
-| target | mean effect downwind - upwind | CI95 | lettura |
+| target | mean effect downwind - upwind | CI95 | interpretation |
 | --- | ---: | --- | --- |
-| `NO2_porta_san_felice` | `-1.03` | attraversa `0` | segno negativo ma non robusto |
-| `CO_porta_san_felice` | `+0.087` | tutto positivo | segnale positivo stabile |
-| `C6H6_porta_san_felice` | `+0.164` | tutto positivo | segnale positivo abbastanza stabile |
-| `NO2_giardini_margherita` | `+3.08` | tutto positivo | segnale positivo netto |
-| `NO2_via_chiarini` | `+0.36` | attraversa `0` | effetto debole/incerto |
-| `O3_giardini_margherita` | `-17.72` | tutto negativo | segnale negativo molto forte |
-| `O3_via_chiarini` | `-21.52` | tutto negativo | segnale negativo molto forte |
+| `NO2_porta_san_felice` | `-1.03` | crosses `0` | negative sign but not robust |
+| `CO_porta_san_felice` | `+0.087` | entirely positive | stable positive signal |
+| `C6H6_porta_san_felice` | `+0.164` | entirely positive | fairly stable positive signal |
+| `NO2_giardini_margherita` | `+3.08` | entirely positive | clear positive signal |
+| `NO2_via_chiarini` | `+0.36` | crosses `0` | weak/uncertain effect |
+| `O3_giardini_margherita` | `-17.72` | entirely negative | very strong negative signal |
+| `O3_via_chiarini` | `-21.52` | entirely negative | very strong negative signal |
 
 ### 12.4. `high_downwind - low_downwind`
 
-| target | effect high_downwind - low_downwind | lettura |
+| target | effect high_downwind - low_downwind | interpretation |
 | --- | ---: | --- |
-| `NO2_porta_san_felice` | `+2.72` | cresce nelle ore downwind ad alta BLQ |
-| `CO_porta_san_felice` | `-0.136` | segno opposto a una relazione monotona semplice |
-| `C6H6_porta_san_felice` | `-0.174` | segno opposto a una relazione monotona semplice |
-| `NO2_giardini_margherita` | `-3.17` | segno opposto |
-| `NO2_via_chiarini` | `-6.22` | segno opposto |
-| `O3_giardini_margherita` | `+34.15` | fortissimo aumento |
-| `O3_via_chiarini` | `+41.15` | fortissimo aumento |
+| `NO2_porta_san_felice` | `+2.72` | increases during downwind hours with high BLQ activity |
+| `CO_porta_san_felice` | `-0.136` | opposite sign to a simple monotonic relationship |
+| `C6H6_porta_san_felice` | `-0.174` | opposite sign to a simple monotonic relationship |
+| `NO2_giardini_margherita` | `-3.17` | opposite sign |
+| `NO2_via_chiarini` | `-6.22` | opposite sign |
+| `O3_giardini_margherita` | `+34.15` | very large increase |
+| `O3_via_chiarini` | `+41.15` | very large increase |
 
-Questa tabella e' importante perche' mostra che BLQ, chimica locale, mixing
-atmosferico e traffico non si riducono a una relazione monotona banale.
+This table is important because it shows that BLQ activity, local chemistry,
+atmospheric mixing, and traffic do not reduce to a simple monotonic relationship.
 
-### 12.5. Sensibilita' alla soglia
+### 12.5. Threshold Sensitivity
 
-| target | diff @0.30 | diff @0.50 | diff @0.70 | diff @0.85 | lettura |
+| target | diff @0.30 | diff @0.50 | diff @0.70 | diff @0.85 | interpretation |
 | --- | ---: | ---: | ---: | ---: | --- |
-| `NO2_porta_san_felice` | `-1.16` | `-0.90` | `-0.93` | `-0.73` | sempre negativo |
-| `CO_porta_san_felice` | `+0.076` | `+0.086` | `+0.083` | `+0.044` | sempre positivo |
-| `C6H6_porta_san_felice` | `+0.138` | `+0.163` | `+0.153` | `+0.096` | sempre positivo |
-| `NO2_giardini_margherita` | `+2.89` | `+3.10` | `+3.43` | `+2.59` | sempre positivo |
-| `NO2_via_chiarini` | `+0.50` | `+0.35` | `-0.54` | `-3.22` | cambia segno |
-| `O3_giardini_margherita` | `-18.44` | `-17.61` | `-15.23` | `-6.60` | sempre negativo |
-| `O3_via_chiarini` | `-22.94` | `-21.46` | `-17.30` | `-5.48` | sempre negativo |
+| `NO2_porta_san_felice` | `-1.16` | `-0.90` | `-0.93` | `-0.73` | always negative |
+| `CO_porta_san_felice` | `+0.076` | `+0.086` | `+0.083` | `+0.044` | always positive |
+| `C6H6_porta_san_felice` | `+0.138` | `+0.163` | `+0.153` | `+0.096` | always positive |
+| `NO2_giardini_margherita` | `+2.89` | `+3.10` | `+3.43` | `+2.59` | always positive |
+| `NO2_via_chiarini` | `+0.50` | `+0.35` | `-0.54` | `-3.22` | sign changes |
+| `O3_giardini_margherita` | `-18.44` | `-17.61` | `-15.23` | `-6.60` | always negative |
+| `O3_via_chiarini` | `-22.94` | `-21.46` | `-17.30` | `-5.48` | always negative |
 
-### 12.6. Regressioni `BLQ x downwind`
+### 12.6. `BLQ x downwind` Regressions
 
-Messaggio chiave:
+Key message:
 
-- il termine `blq_x_downwind` non produce una firma semplice e coerente per tutti
-  i target;
-- `NO2_porta_san_felice` non supporta la narrativa piu' ingenua;
-- `O3` sulle stazioni esterne mostra pattern robusti ma di segno opposto.
+- the `blq_x_downwind` term does not produce a simple and coherent signature
+  across all targets;
+- `NO2_porta_san_felice` does not support the simplest monotonic narrative;
+- `O3` at the external stations shows robust but opposite-signed patterns.
 
-### 12.7. Gradienti spaziali
+### 12.7. Spatial Gradients
 
-I gradienti DID mostrano che:
+The DID gradients show that:
 
-- esistono differenze spaziali legate al regime di vento;
-- ma non tutte si allineano a una narrativa monotona "piu' vicino alla traiettoria
-  aeroporto -> piu' alto";
-- il sistema reale dipende da stazione, inquinante e orizzonte.
+- spatial differences related to wind regime do exist;
+- they do not all align with a monotonic narrative such as "closer to the
+  airport trajectory implies higher concentrations";
+- the real system depends on station, pollutant, and forecast horizon.
 
-### 12.8. Lettura complessiva della parte fisica
+### 12.8. Overall Interpretation of the Physical Analysis
 
-- `NO2_porta_san_felice`: non mostra il pattern aeroportuale semplice atteso;
-- `CO_porta_san_felice`: segnale downwind positivo piccolo ma stabile;
-- `C6H6_porta_san_felice`: segnale positivo descrittivo, meno convincente dopo
+- `NO2_porta_san_felice`: does not show the expected simple airport pattern;
+- `CO_porta_san_felice`: small but stable positive downwind signal;
+- `C6H6_porta_san_felice`: positive descriptive signal, less convincing after
   matching;
-- `NO2_giardini_margherita`: uno dei casi piu' netti a favore di un effetto
-  downwind positivo;
-- `NO2_via_chiarini`: ambiguo;
-- `O3`: pattern downwind robustamente negativo sulle stazioni esterne.
+- `NO2_giardini_margherita`: one of the clearest cases in favour of a positive
+  downwind effect;
+- `NO2_via_chiarini`: ambiguous;
+- `O3`: robustly negative downwind pattern at the external stations.
 
-Conclusione fisica prudente:
+Prudent physical conclusion:
 
-- non emerge una firma aeroportuale unica e generalizzata;
-- esistono segnali compatibili con un ruolo di BLQ e del vento;
-- l'effetto cambia molto tra inquinanti e stazioni;
-- una spiegazione monocausale non e' supportata.
+- no unique and generalized airport signature emerges;
+- some signals are compatible with a role of BLQ activity and wind;
+- the effect varies substantially across pollutants and stations;
+- a monocausal explanation is not supported.
 
-## 13. Confronto esplicito tra inquinanti
+## 13. Explicit Cross-Pollutant Comparison
 
-La nuova analisi `cross_pollutant` ordina in una sintesi unica cio' che nelle
-sezioni precedenti era distribuito tra forecasting, ablazioni e contrasti di
-vento.
+The new `cross_pollutant` analysis organizes into a single synthesis what was
+previously distributed across forecasting, ablations, and wind contrasts.
 
-### 13.1. Sintesi per target
+### 13.1. Target-Level Synthesis
 
-| target | gain autoregressivo medio R2 | top group 1 | delta | top group 2 | delta | downwind-upwind std units | matched std units | bootstrap std units | soglia stabile |
+| target | mean autoregressive gain R2 | top group 1 | delta | top group 2 | delta | downwind-upwind std units | matched std units | bootstrap std units | stable threshold |
 | --- | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
 | `C6H6_porta_san_felice` | `0.046` | `other_pollutants` | `0.096` | `meteo` | `0.054` | `0.247` | `0.023` | `0.248` | `1` |
 | `CO_porta_san_felice` | `0.240` | `meteo` | `0.261` | `other_pollutants` | `0.100` | `0.296` | `0.064` | `0.301` | `1` |
@@ -816,120 +1048,123 @@ vento.
 | `O3_giardini_margherita` | `0.062` | `meteo` | `0.272` | `rolling_features` | `0.070` | `-0.471` | `-0.151` | `-0.474` | `1` |
 | `O3_via_chiarini` | `0.049` | `meteo` | `0.090` | `other_pollutants` | `0.052` | `-0.548` | `-0.229` | `-0.549` | `1` |
 
-### 13.2. Sintesi per famiglia chimica
+### 13.2. Chemical-Family Synthesis
 
-| pollutant | best no-auto R2 1h | best no-auto R2 24h | best with-auto R2 1h | best with-auto R2 24h | gain autoregressivo medio | raw downwind-upwind std units | matched std units | bootstrap std units | high_downwind-low_downwind std units | soglia stabile | top groups |
+| pollutant | best no-auto R2 1h | best no-auto R2 24h | best with-auto R2 1h | best with-auto R2 24h | mean autoregressive gain | raw downwind-upwind std units | matched std units | bootstrap std units | high_downwind-low_downwind std units | stable threshold | top groups |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | `C6H6` | `0.578` | `0.179` | `0.677` | `0.221` | `0.046` | `0.247` | `0.023` | `0.248` | `-0.264` | `1.00` | `other_pollutants`, `meteo`, `rolling_features` |
 | `CO` | `0.417` | `0.087` | `0.717` | `0.320` | `0.240` | `0.296` | `0.064` | `0.301` | `-0.466` | `1.00` | `meteo`, `other_pollutants`, `rolling_features` |
 | `NO2` | `0.342` | `-0.002` | `0.772` | `0.194` | `0.261` | `0.097` | `-0.023` | `0.093` | `-0.242` | `0.67` | `meteo`, `other_pollutants`, `rolling_features` |
 | `O3` | `0.790` | `0.258` | `0.914` | `0.286` | `0.056` | `-0.510` | `-0.190` | `-0.512` | `0.982` | `1.00` | `meteo`, `other_pollutants`, `other_pollutants` |
 
-### 13.3. Lettura finale del confronto
+### 13.3. Final Interpretation of the Comparison
 
-- `NO2` e' la famiglia piu' autoregressiva;
-- `CO` e' intermedio ma ancora molto dipendente dallo storico;
-- `C6H6` e' il target piu' leggibile da fattori esterni a Porta San Felice;
-- `O3` e' il piu' meteorologico, regolare e robusto nel confronto standardizzato
-  dei regimi di vento.
+- `NO2` is the most autoregressive family;
+- `CO` is intermediate but remains strongly dependent on target history;
+- `C6H6` is the target most readable from external factors at Porta San Felice;
+- `O3` is the most meteorological and regular target, and the most robustly
+  distinguishable in standardized wind-regime contrasts.
 
-## 14. Cosa si puo' sostenere davvero
+## 14. What Can Be Supported by the Results
 
-### 14.1. Cose supportate dai risultati
+### 14.1. Supported Statements
 
-- le feature esterne contengono segnale reale;
-- il valore di questo segnale cambia molto tra target;
-- `NO2` e' fortemente guidato dalla persistenza;
-- `CO` ha un comportamento intermedio;
-- `C6H6` e' piu' leggibile da fattori esterni;
-- `O3` e' molto regolare e fortemente meteorologico;
-- il contesto multi-stazione contiene informazione reale;
-- `service_type` aggiunge segnale predittivo in casi selettivi;
-- il vento e la geometria aeroporto -> stazione spiegano parte del quadro, ma in
-  modo non uniforme.
+- external features contain substantive predictive signal;
+- the value of that signal varies substantially across targets;
+- `NO2` is strongly driven by persistence;
+- `CO` has an intermediate behaviour;
+- `C6H6` is more readable from external factors;
+- `O3` is highly regular and strongly meteorological;
+- the multi-station context contains substantive predictive information;
+- `service_type` adds predictive signal in selective cases;
+- wind and airport-to-station geometry explain part of the picture, but not
+  uniformly.
 
-### 14.2. Cose non supportate
+### 14.2. Unsupported Statements
 
-- causalita' forte;
-- attribuzione pulita di dominanza sorgente;
-- una narrativa semplice del tipo "BLQ aumenta sempre il target in downwind";
-- una firma unica dell'aeroporto valida per tutti gli inquinanti.
+- strong causality;
+- clean attribution of source dominance;
+- a simple narrative such as "BLQ always increases the target under downwind
+  conditions";
+- a unique airport signature valid for all pollutants.
 
-## 15. Limiti interpretativi
+## 15. Interpretative Limits
 
-I limiti principali sono:
+The main limitations are:
 
-- performance predittiva non implica causalita';
-- autoregressione e interpretazione sono in tensione;
-- traffico, meteo, calendario e altri inquinanti sono correlati;
-- il multioutput dimostra dipendenza informativa, non causalita' tra stazioni;
-- `airport_response` resta una parte esplicativa, non inferenziale;
-- anche `upwind/downwind` resta osservazionale, non sperimentale.
+- predictive performance does not imply causality;
+- autoregression and interpretation are in tension;
+- traffic, meteorology, calendar variables, and other pollutants are correlated;
+- multioutput forecasting demonstrates informational dependence, not causality
+  among stations;
+- `airport_response` remains explanatory, not inferential;
+- `upwind/downwind` also remains observational, not experimental.
 
-## 16. Conclusione attuale
+## 16. Current Conclusion
 
-La repo ora racconta in modo coerente una storia piu' precisa di quella
-sostenibile nelle versioni iniziali.
+The repository now supports a more coherent and precise narrative than the one
+that was sustainable in the initial versions.
 
-1. Il sistema contiene segnale predittivo reale proveniente da traffico, meteo,
-   aeroporto e contesto multi-stazione.
-2. Il peso relativo di questi blocchi cambia molto tra target.
-3. La struttura media del problema e' guidata soprattutto da:
+1. The system contains substantive predictive signal from traffic, meteorology, airport
+   activity, and multi-station context.
+2. The relative weight of these blocks varies substantially across targets.
+3. The average structure of the problem is governed primarily by:
    - `meteo`
    - `other_pollutants`
    - `rolling_features`
-4. I blocchi aeroportuali raffinati aggiungono informazione reale, ma soprattutto
-   in casi selettivi.
-5. `NO2` e' la famiglia piu' autoregressiva.
-6. `CO` e' intermedio.
-7. `C6H6` e' il target piu' leggibile da variabili esterne a Porta San Felice.
-8. `O3` e' il target piu' meteorologico, regolare e robustamente distinguibile
-   anche nei contrasti di vento.
+4. Refined airport-related blocks add predictive information, but mainly in selective
+   cases.
+5. `NO2` is the most autoregressive family.
+6. `CO` is intermediate.
+7. `C6H6` is the target most readable from external variables at Porta San
+   Felice.
+8. `O3` is the most meteorological and regular target, and the most robustly
+   distinguishable in wind-regime contrasts.
 
-La conclusione piu' difendibile non e' quindi "BLQ domina" ne' "BLQ non conta",
-ma una formulazione piu' sobria:
+The most defensible conclusion is therefore neither that BLQ dominates the
+system nor that BLQ is irrelevant, but a more cautious formulation:
 
-- l'aeroporto e' una parte informativa del sistema;
-- il suo effetto e' selettivo, non uniforme;
-- la dinamica media resta governata soprattutto da meteo, dipendenze tra
-  inquinanti e memoria recente aggregata;
-- non emerge una firma aeroportuale unica e semplice valida per tutti i target.
+- the airport is an informative component of the system;
+- its effect is selective, not uniform;
+- the average dynamics remain governed primarily by meteorology, dependencies
+  among pollutants, and recent aggregated memory;
+- no single simple airport signature emerges across all targets.
 
-## 17. Dove stanno i risultati completi
+## 17. Location of the Complete Results
 
-Il file presente qui e' una sintesi strutturata e completa dei risultati piu'
-importanti. Le matrici complete, con tutte le righe e tutte le metriche grezze,
-restano nei CSV.
+This file is a structured and complete synthesis of the most important results.
+The full matrices, including all rows and all raw metrics, remain in the CSV
+files.
 
-Per leggere **tutti i risultati** senza perdita di dettaglio:
+To inspect **all results** without loss of detail:
 
-- metriche complete single-target:
+- complete single-target metrics:
   - `Analysis/slurm_full_explain/advanced_temporal_cv_summary.csv`
-- predizioni out-of-sample:
+- out-of-sample predictions:
   - `Analysis/slurm_full_explain/advanced_temporal_cv_predictions.csv`
-- metriche complete multioutput:
+- complete multioutput metrics:
   - `Analysis/slurm_full_explain/advanced_multioutput_xgboost_summary.csv`
-- ablazioni mirate:
+- targeted ablations:
   - `Analysis/slurm_full_explain/advanced_ablation_summary.csv`
-- ablazioni estese single-target:
+- extended single-target ablations:
   - `Analysis/slurm_full_explain/advanced_extended_ablation_delta_summary.csv`
-- ablazioni estese multioutput:
+- extended multioutput ablations:
   - `Analysis/slurm_full_explain/advanced_multioutput_extended_ablation_delta_summary.csv`
-- SHAP e importance:
+- SHAP and importance:
   - `Analysis/slurm_full_explain/advanced_group_shap.csv`
   - `Analysis/slurm_full_explain/advanced_multioutput_group_shap.csv`
   - `Analysis/slurm_full_explain/advanced_xgboost_native_feature_importances_summary.csv`
   - `Analysis/slurm_full_explain/advanced_multioutput_xgboost_native_feature_importances_summary.csv`
-- contrasti e regressioni `upwind/downwind`:
+- `upwind/downwind` contrasts and regressions:
   - `Analysis/slurm_full_upwind/upwind_downwind_summary.csv`
   - `Analysis/slurm_full_upwind/upwind_downwind_blq_effects.csv`
   - `Analysis/slurm_full_upwind/upwind_downwind_matched_summary.csv`
   - `Analysis/slurm_full_upwind/upwind_downwind_bootstrap_effects.csv`
   - `Analysis/slurm_full_upwind/upwind_downwind_threshold_sensitivity.csv`
   - `Analysis/slurm_full_upwind/multistation_did_summary.csv`
-- sintesi comparative:
+- comparative syntheses:
   - `Analysis/cross_pollutant/cross_pollutant_overview.csv`
   - `Analysis/cross_pollutant/cross_pollutant_family_overview.csv`
 
-Questo file e questi CSV, letti insieme, coprono sia la parte descrittiva sia la
-parte quantitativa completa.
+This file and the CSV outputs, read together, cover both the descriptive
+interpretation and the complete quantitative results.
