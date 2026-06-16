@@ -11,3 +11,9 @@ paper/
 Datasets_Raw/
 
 Analysis/
+
+# Local user and cluster artifacts
+*.out
+*.err
+send_this.sh
+*fresca*
