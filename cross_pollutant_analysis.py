@@ -20,8 +20,8 @@ from analysis_runtime import resolve_workers
 
 
 DEFAULT_DATASET = Path("Datasets_Raw/hourly_merged_2023_2025.csv")
-DEFAULT_EXPLAIN_DIR = Path("Analysis/slurm_full_explain")
-DEFAULT_UPWIND_DIR = Path("Analysis/slurm_full_upwind")
+DEFAULT_EXPLAIN_DIR = Path("Analysis/explain")
+DEFAULT_UPWIND_DIR = Path("Analysis/upwind")
 DEFAULT_OUTPUT_DIR = Path("Analysis/cross_pollutant")
 PLOT_FORMAT = "svg"
 TARGET_ORDER = [

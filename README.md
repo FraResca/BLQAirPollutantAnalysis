@@ -41,32 +41,32 @@ Purpose:
 
 Main outputs:
 
-- `Analysis/slurm_full_explain/advanced_temporal_cv_scores.csv`
-- `Analysis/slurm_full_explain/advanced_temporal_cv_predictions.csv`
-- `Analysis/slurm_full_explain/advanced_temporal_cv_summary.csv`
-- `Analysis/slurm_full_explain/advanced_ablation_summary.csv`
-- `Analysis/slurm_full_explain/advanced_extended_ablation_feature_sets.csv`
-- `Analysis/slurm_full_explain/advanced_extended_ablation_scores.csv`
-- `Analysis/slurm_full_explain/advanced_extended_ablation_summary.csv`
-- `Analysis/slurm_full_explain/advanced_extended_ablation_fold_deltas.csv`
-- `Analysis/slurm_full_explain/advanced_extended_ablation_delta_summary.csv`
-- `Analysis/slurm_full_explain/advanced_group_shap.csv`
-- `Analysis/slurm_full_explain/advanced_xgboost_native_feature_importances.csv`
-- `Analysis/slurm_full_explain/advanced_xgboost_native_feature_importances_summary.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_xgboost_scores.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_xgboost_summary.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_ablation_summary.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_extended_ablation_feature_sets.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_extended_ablation_scores.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_extended_ablation_summary.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_extended_ablation_fold_deltas.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_extended_ablation_delta_summary.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_group_shap.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_xgboost_native_feature_importances.csv`
-- `Analysis/slurm_full_explain/advanced_multioutput_xgboost_native_feature_importances_summary.csv`
-- `Analysis/slurm_full_explain/advanced_runtime_profile.csv`
-- `Analysis/slurm_full_explain/pollutant_station_reference_stats.csv`
-- `Analysis/slurm_full_explain/plots/`
+- `Analysis/explain/advanced_temporal_cv_scores.csv`
+- `Analysis/explain/advanced_temporal_cv_predictions.csv`
+- `Analysis/explain/advanced_temporal_cv_summary.csv`
+- `Analysis/explain/advanced_ablation_summary.csv`
+- `Analysis/explain/advanced_extended_ablation_feature_sets.csv`
+- `Analysis/explain/advanced_extended_ablation_scores.csv`
+- `Analysis/explain/advanced_extended_ablation_summary.csv`
+- `Analysis/explain/advanced_extended_ablation_fold_deltas.csv`
+- `Analysis/explain/advanced_extended_ablation_delta_summary.csv`
+- `Analysis/explain/advanced_group_shap.csv`
+- `Analysis/explain/advanced_xgboost_native_feature_importances.csv`
+- `Analysis/explain/advanced_xgboost_native_feature_importances_summary.csv`
+- `Analysis/explain/advanced_multioutput_xgboost_scores.csv`
+- `Analysis/explain/advanced_multioutput_xgboost_summary.csv`
+- `Analysis/explain/advanced_multioutput_ablation_summary.csv`
+- `Analysis/explain/advanced_multioutput_extended_ablation_feature_sets.csv`
+- `Analysis/explain/advanced_multioutput_extended_ablation_scores.csv`
+- `Analysis/explain/advanced_multioutput_extended_ablation_summary.csv`
+- `Analysis/explain/advanced_multioutput_extended_ablation_fold_deltas.csv`
+- `Analysis/explain/advanced_multioutput_extended_ablation_delta_summary.csv`
+- `Analysis/explain/advanced_multioutput_group_shap.csv`
+- `Analysis/explain/advanced_multioutput_xgboost_native_feature_importances.csv`
+- `Analysis/explain/advanced_multioutput_xgboost_native_feature_importances_summary.csv`
+- `Analysis/explain/advanced_runtime_profile.csv`
+- `Analysis/explain/pollutant_station_reference_stats.csv`
+- `Analysis/explain/plots/`
 
 ### 2.2. `upwind/downwind` Component
 
@@ -87,25 +87,25 @@ Purpose:
 
 Main outputs:
 
-- `Analysis/slurm_full_upwind/upwind_downwind_summary.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_blq_effects.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_distributed_lag_effects.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_regression_coefficients.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_distributed_lag_coefficients.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_matched_summary.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_matched_pairs.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_bootstrap_effects.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_threshold_sensitivity.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_classified_hours.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_blq_quantile_summary.csv`
-- `Analysis/slurm_full_upwind/upwind_downwind_group_shap_by_regime.csv`
-- `Analysis/slurm_full_upwind/multistation_did_summary.csv`
-- `Analysis/slurm_full_upwind/multistation_did_regression_coefficients.csv`
-- `Analysis/slurm_full_upwind/multistation_panel_long.csv`
-- `Analysis/slurm_full_upwind/multistation_spatial_gradients.csv`
-- `Analysis/slurm_full_upwind/multistation_spatial_gradient_summary.csv`
-- `Analysis/slurm_full_upwind/multistation_station_wind_features.csv`
-- `Analysis/slurm_full_upwind/plots/`
+- `Analysis/upwind/upwind_downwind_summary.csv`
+- `Analysis/upwind/upwind_downwind_blq_effects.csv`
+- `Analysis/upwind/upwind_downwind_distributed_lag_effects.csv`
+- `Analysis/upwind/upwind_downwind_regression_coefficients.csv`
+- `Analysis/upwind/upwind_downwind_distributed_lag_coefficients.csv`
+- `Analysis/upwind/upwind_downwind_matched_summary.csv`
+- `Analysis/upwind/upwind_downwind_matched_pairs.csv`
+- `Analysis/upwind/upwind_downwind_bootstrap_effects.csv`
+- `Analysis/upwind/upwind_downwind_threshold_sensitivity.csv`
+- `Analysis/upwind/upwind_downwind_classified_hours.csv`
+- `Analysis/upwind/upwind_downwind_blq_quantile_summary.csv`
+- `Analysis/upwind/upwind_downwind_group_shap_by_regime.csv`
+- `Analysis/upwind/multistation_did_summary.csv`
+- `Analysis/upwind/multistation_did_regression_coefficients.csv`
+- `Analysis/upwind/multistation_panel_long.csv`
+- `Analysis/upwind/multistation_spatial_gradients.csv`
+- `Analysis/upwind/multistation_spatial_gradient_summary.csv`
+- `Analysis/upwind/multistation_station_wind_features.csv`
+- `Analysis/upwind/plots/`
 
 ### 2.3. `airport_response` Component
 
@@ -123,14 +123,14 @@ Purpose:
 
 Main outputs:
 
-- `Analysis/airport_response_full/blq_empirical_response_curves.csv`
-- `Analysis/airport_response_full/blq_partial_dependence_model_metrics.csv`
-- `Analysis/airport_response_full/blq_partial_dependence_profiles.csv`
-- `Analysis/airport_response_full/blq_event_windows_summary.csv`
-- `Analysis/airport_response_full/blq_event_windows_long.csv`
-- `Analysis/airport_response_full/blq_exceedance_probabilities.csv`
-- `Analysis/airport_response_full/blq_spatial_gradient_response.csv`
-- `Analysis/airport_response_full/plots/`
+- `Analysis/airport_response/blq_empirical_response_curves.csv`
+- `Analysis/airport_response/blq_partial_dependence_model_metrics.csv`
+- `Analysis/airport_response/blq_partial_dependence_profiles.csv`
+- `Analysis/airport_response/blq_event_windows_summary.csv`
+- `Analysis/airport_response/blq_event_windows_long.csv`
+- `Analysis/airport_response/blq_exceedance_probabilities.csv`
+- `Analysis/airport_response/blq_spatial_gradient_response.csv`
+- `Analysis/airport_response/plots/`
 
 This component is **descriptive and explanatory**, not causal. Its purpose is to make the relationship among BLQ activity, wind, pollutant targets, and urban context more interpretable.
 
@@ -315,9 +315,9 @@ For debugging or partial reproduction, run one component at a time and inspect i
 
 The main generated outputs are written under `Analysis/`:
 
-- `Analysis/slurm_full_explain/`
-- `Analysis/slurm_full_upwind/`
-- `Analysis/airport_response_full/`
+- `Analysis/explain/`
+- `Analysis/upwind/`
+- `Analysis/airport_response/`
 - `Analysis/cross_pollutant/`
 
 Each directory contains CSV files with metrics and summaries. Some directories also contain a `plots/` subdirectory.
@@ -341,29 +341,29 @@ The complete result matrices, including all rows and all raw metrics, are stored
 To inspect **all results** without loss of detail:
 
 - complete single-target metrics:
-  - `Analysis/slurm_full_explain/advanced_temporal_cv_summary.csv`
+  - `Analysis/explain/advanced_temporal_cv_summary.csv`
 - out-of-sample predictions:
-  - `Analysis/slurm_full_explain/advanced_temporal_cv_predictions.csv`
+  - `Analysis/explain/advanced_temporal_cv_predictions.csv`
 - complete multioutput metrics:
-  - `Analysis/slurm_full_explain/advanced_multioutput_xgboost_summary.csv`
+  - `Analysis/explain/advanced_multioutput_xgboost_summary.csv`
 - targeted ablations:
-  - `Analysis/slurm_full_explain/advanced_ablation_summary.csv`
+  - `Analysis/explain/advanced_ablation_summary.csv`
 - extended single-target ablations:
-  - `Analysis/slurm_full_explain/advanced_extended_ablation_delta_summary.csv`
+  - `Analysis/explain/advanced_extended_ablation_delta_summary.csv`
 - extended multioutput ablations:
-  - `Analysis/slurm_full_explain/advanced_multioutput_extended_ablation_delta_summary.csv`
+  - `Analysis/explain/advanced_multioutput_extended_ablation_delta_summary.csv`
 - SHAP and importance:
-  - `Analysis/slurm_full_explain/advanced_group_shap.csv`
-  - `Analysis/slurm_full_explain/advanced_multioutput_group_shap.csv`
-  - `Analysis/slurm_full_explain/advanced_xgboost_native_feature_importances_summary.csv`
-  - `Analysis/slurm_full_explain/advanced_multioutput_xgboost_native_feature_importances_summary.csv`
+  - `Analysis/explain/advanced_group_shap.csv`
+  - `Analysis/explain/advanced_multioutput_group_shap.csv`
+  - `Analysis/explain/advanced_xgboost_native_feature_importances_summary.csv`
+  - `Analysis/explain/advanced_multioutput_xgboost_native_feature_importances_summary.csv`
 - `upwind/downwind` contrasts and regressions:
-  - `Analysis/slurm_full_upwind/upwind_downwind_summary.csv`
-  - `Analysis/slurm_full_upwind/upwind_downwind_blq_effects.csv`
-  - `Analysis/slurm_full_upwind/upwind_downwind_matched_summary.csv`
-  - `Analysis/slurm_full_upwind/upwind_downwind_bootstrap_effects.csv`
-  - `Analysis/slurm_full_upwind/upwind_downwind_threshold_sensitivity.csv`
-  - `Analysis/slurm_full_upwind/multistation_did_summary.csv`
+  - `Analysis/upwind/upwind_downwind_summary.csv`
+  - `Analysis/upwind/upwind_downwind_blq_effects.csv`
+  - `Analysis/upwind/upwind_downwind_matched_summary.csv`
+  - `Analysis/upwind/upwind_downwind_bootstrap_effects.csv`
+  - `Analysis/upwind/upwind_downwind_threshold_sensitivity.csv`
+  - `Analysis/upwind/multistation_did_summary.csv`
 - comparative syntheses:
   - `Analysis/cross_pollutant/cross_pollutant_overview.csv`
   - `Analysis/cross_pollutant/cross_pollutant_family_overview.csv`

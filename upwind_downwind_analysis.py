@@ -28,7 +28,7 @@ from analysis_runtime import resolve_workers
 
 
 DEFAULT_INPUT = Path("Datasets_Raw/hourly_merged_2023_2025.csv")
-DEFAULT_OUTPUT_DIR = Path("Analysis")
+DEFAULT_OUTPUT_DIR = Path("Analysis/upwind")
 DEFAULT_SPIRE_INPUT = Path("Datasets_Raw/spire_flow_2023_2025.csv")
 DATETIME_COLUMN = "datetime"
 POLLUTANTS = [
@@ -106,10 +106,7 @@ def parse_args() -> argparse.Namespace:
         "--workers",
         type=int,
         default=0,
-        help=(
-            "Parallelismo locale. 0=auto: usa SLURM_CPUS_PER_TASK se presente, "
-            "altrimenti tutte le CPU locali."
-        ),
+        help="Parallelismo locale. 0=auto: usa tutte le CPU locali disponibili.",
     )
     return parser.parse_args()
 

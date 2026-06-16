@@ -10,9 +10,9 @@ import pandas as pd
 import plotly.graph_objects as go
 
 
-DEFAULT_PREDICTIONS = Path("Analysis/slurm_full_explain/advanced_temporal_cv_predictions.csv")
-DEFAULT_SUMMARY = Path("Analysis/slurm_full_explain/advanced_temporal_cv_summary.csv")
-DEFAULT_OUTPUT_DIR = Path("Analysis/slurm_full_explain/interactive_plots")
+DEFAULT_PREDICTIONS = Path("Analysis/explain/advanced_temporal_cv_predictions.csv")
+DEFAULT_SUMMARY = Path("Analysis/explain/advanced_temporal_cv_summary.csv")
+DEFAULT_OUTPUT_DIR = Path("Analysis/explain/interactive_plots")
 
 
 def parse_args() -> argparse.Namespace:

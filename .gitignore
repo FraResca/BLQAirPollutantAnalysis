@@ -17,3 +17,5 @@ Analysis/
 *.err
 send_this.sh
 *fresca*
+*.slurm
+submit_*.sh

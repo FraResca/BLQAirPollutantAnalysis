@@ -90,10 +90,7 @@ def parse_args() -> argparse.Namespace:
         "--workers",
         type=int,
         default=0,
-        help=(
-            "Parallelismo locale. 0=auto: usa SLURM_CPUS_PER_TASK se presente, "
-            "altrimenti os.cpu_count()."
-        ),
+        help="Parallelismo locale. 0=auto: usa tutte le CPU locali disponibili.",
     )
     return parser.parse_args()
 

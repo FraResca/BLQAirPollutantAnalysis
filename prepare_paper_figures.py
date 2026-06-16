@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 
-DEFAULT_UPWIND_DIR = Path("Analysis/slurm_full_upwind")
+DEFAULT_UPWIND_DIR = Path("Analysis/upwind")
 DEFAULT_CROSS_DIR = Path("Analysis/cross_pollutant")
 DEFAULT_PAPER_FIGURES = Path("paper/figures")
 

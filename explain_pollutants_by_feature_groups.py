@@ -37,7 +37,7 @@ except ImportError:  # pragma: no cover - fallback for minimal environments
 
 
 DEFAULT_INPUT = Path("Datasets_Raw/hourly_merged_2023_2025.csv")
-DEFAULT_OUTPUT_DIR = Path("Analysis")
+DEFAULT_OUTPUT_DIR = Path("Analysis/explain")
 DATETIME_COLUMN = "datetime"
 PLOT_FORMAT = "svg"
 AIRPORT_REFERENCE = (44.5354, 11.2887)
@@ -173,10 +173,7 @@ def parse_args() -> argparse.Namespace:
         "--workers",
         type=int,
         default=0,
-        help=(
-            "Parallelismo locale. 0=auto: usa SLURM_CPUS_PER_TASK se presente, "
-            "altrimenti tutte le CPU locali."
-        ),
+        help="Parallelismo locale. 0=auto: usa tutte le CPU locali disponibili.",
     )
     parser.add_argument(
         "--wind-angle-tolerance-deg",
